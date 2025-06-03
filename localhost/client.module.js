@@ -1,0 +1,414 @@
+
+import {
+    f_add_css,
+    f_s_css_prefixed,
+    o_variables, 
+    f_s_css_from_o_variables
+} from "https://deno.land/x/f_add_css@2.0.0/mod.js"
+
+import {
+    f_o_html_from_o_js,
+    f_o_proxified_and_add_listeners,
+    f_o_js_a_o_toast,
+    f_o_toast,
+    o_state_a_o_toast,
+    s_css_a_o_toast
+} from "https://deno.land/x/handyhelpers@5.3.7/mod.js"
+
+
+// import { Boolean } from '/three.js-r126/examples/jsm/math/BooleanOperation.js';
+// import { STLExporter } from '/three/STLExporter.js';
+// if you need more addons/examples download from here...
+//  
+let s_id_error_msg = 'error_msg'
+o_variables.n_rem_font_size_base = 1. // adjust font size, other variables can also be adapted before adding the css to the dom
+o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for interactive elements 
+f_add_css(
+    `
+    body{
+        min-height: 100vh;
+        min-width: 100vw;
+    }
+    #${s_id_error_msg}{
+        position: absolute;
+        width: 100%;
+        top: 0;
+        background: #f5c0c099;
+        color: #5e0505;
+        padding: 1rem;
+        z-index: 111;
+    }
+    .no-drag {
+        -webkit-user-drag: none;
+        user-drag: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    ${s_css_a_o_toast}
+    ${
+        f_s_css_from_o_variables(
+            o_variables
+        )
+    }
+    .inputs{
+        flex: 1 1 auto;
+        top: 0;
+        right: 0;
+        width: 20%;
+        max-width: 20%;
+        height: 100%;
+        background: rgba(22,22,22,0.8);
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+    }
+    .imgcont{
+        flex: 1 1 auto;
+        border: 1px solid red;
+
+    }
+    .imgcont img {
+        width: 100%;
+        height: 100%;
+    }
+    label{
+        width:100%;
+        }
+    .canvasses{
+        width: 80%;
+    }
+    .overlay{
+        position: fixed;
+        top:0;
+        left:0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.5);
+        z-index: 100;
+        padding: 1rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(5px);
+        border-radius: 1rem;
+        border: 1px solid rgba(255,255,255,0.5);
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+        font-family: 'Courier New', Courier, monospace;
+        text-align: center;
+        z-index: 100;           
+    }
+    .overlay div{
+
+        flex: 1; /* Makes items grow equally to fill space */
+        min-height: 100px; /* Sets minimum height */
+        min-width: 100px; /* Sets minimum width */
+        background-color: #3498db; /* Your desired background color */
+        border: 1px solid #2980b9; /* Optional border for better visibility */
+
+
+    }
+    .item.active{
+        outline: 2px solid green;
+    }
+    `
+);
+
+let f_o_item = function(
+    s_text = '', 
+    s_src_img = '',
+    s_scl = 1,
+    n_trn_x = 0, 
+    n_trn_y = 0, 
+    s_font_family = 'Arial', 
+    s_color_bg = 'transparent', 
+    s_color_font = 'red', 
+    s_color_outline = 'black', 
+    n_size_pixel_outline = 20, 
+    n_scl_x_px_image = 0,
+    n_scl_y_px_image = 0,
+    n_scl_factor = 1,
+){
+    return { 
+        s_text,
+        s_src_img,
+        s_scl,
+        n_trn_x,
+        n_trn_y,
+        s_font_family,
+        s_color_bg,
+        s_color_font,
+        s_color_outline,
+        n_size_pixel_outline,
+        n_scl_x_px_image,
+        n_scl_y_px_image,
+        n_scl_factor
+    }
+}
+
+let f_callback_beforevaluechange = function(a_s_path, v_old, v_new){
+    // console.log('a_s_path')
+    // console.log(a_s_path)
+    // let s_path = a_s_path.join('.');
+    // if(s_path == 'a_o_person.0.s_name'){
+    //     console.log('name of first person will be changed')
+    // }
+}
+let f_callback_aftervaluechange = function(a_s_path, v_old, v_new){
+    // console.log('a_s_path')
+    // console.log(a_s_path)
+    // let s_path = a_s_path.join('.');
+    // if(s_path == 'n_thickness'){
+    //     f_update_rendering();
+    // }
+}
+
+
+let o_div = document;
+let o_blob_stl = null;
+let a_o_license = await(await fetch('https://api.sketchfab.com/v3/licenses')).json()
+let a_o_category = await(await(fetch('https://api.sketchfab.com/v3/categories'))).json()
+let a_o_pixel_black= []; // we dont need a proxy of this large array
+let f_o_aspect_ratio = function(
+    s_ratio = '4/3',
+    s_description = 'Makerworld Desktop'
+){
+    return {
+        s_ratio, 
+        s_description
+    }
+}
+let a_o_aspect_ratio =[
+    f_o_aspect_ratio(
+        '4/3', 'Makerworld Desktop',
+    ),
+    f_o_aspect_ratio(
+        '3/4', 'Makerworld Mobile',
+    ),
+    f_o_aspect_ratio(
+        '1/1', 'Square',
+    )
+]
+let o_bcr_bgimg = {width:0};
+
+let a_n_u8_imagedata_original = new Uint8ClampedArray(0); // we dont need a proxy of this large array
+let a_n_u8_imagedata = new Uint8ClampedArray(0); // we dont need a proxy of this large array
+
+let a_n_y = new Uint8ClampedArray(0); // we dont need a proxy of this large array
+let o_state = f_o_proxified_and_add_listeners(
+    {
+        n_ms_timeout: 333,
+        n_id_timeout: 0,
+        s_src_img: '',
+        n_scl_x_px_image: 0,
+        n_scl_y_px_image: 0,
+        ...o_state_a_o_toast, 
+        b_mouse_down_left: false,
+        b_mouse_down_middle: false,
+        b_mouse_down_right: false,
+    },
+    f_callback_beforevaluechange,
+    f_callback_aftervaluechange, 
+    o_div
+)
+
+globalThis.o_state = o_state
+
+let f_sleep_ms = async function(n_ms){
+    return new Promise((f_res, f_rej)=>{
+        setTimeout(()=>{
+            return f_res(true)
+        },n_ms)
+    })
+}
+
+let f_add_tag = function(){
+    if(o_state.s_tag != '' && !o_state.a_s_tag.find(s=>{return s == o_state.s_tag})){
+        o_state.a_s_tag.push(o_state.s_tag)
+        o_state.s_tag = ''
+    }
+}
+
+
+globalThis.f_o_toast = f_o_toast
+let o_el_svg = null;
+// then we build the html
+f_o_toast('this is info', 'info', 5000)
+f_o_toast('this is warning','warning', 5000)
+f_o_toast('this is error','error', 5000)
+f_o_toast('this will take a while','loading', 5000)
+
+
+let f_n_idx_pixel_from_n_x_n_y = function(
+    n_x, 
+    n_y, 
+    n_scl_x_px_image = o_state.n_scl_x_px_image, 
+    n_scl_y_px_image = o_state.n_scl_y_px_image,
+    n_channels = 4 // RGBA
+){
+    return (n_x + n_y * n_scl_x_px_image) * n_channels;
+}
+let f_update_canvas = function(){
+    clearTimeout(o_state.n_id_timeout);
+    o_state.n_id_timeout = setTimeout(()=>{
+        f_update_canvas_timeout();
+    }, o_state.n_ms_timeout);
+}
+let f_update_canvas_timeout = function(
+){
+    console.log('f_update_canvas_timeout')
+    let n_channels = 4; // RGBA
+
+    // client.module.js:275 Uncaught TypeError: Method %TypedArray%.prototype.slice called on incompatible receiver [object Uint8ClampedArray]
+    // at Proxy.slice (<anonymous>)
+    // at HTMLCanvasElement.onmousedown (client.module.js:275:88)
+    // at HTMLCanvasElement.f_event_handler (module.js:2736:18)
+    // fix the error by using the correct method to get the pixel data
+
+    for(let n_x2 = 0; n_x2 < a_n_y.length; n_x2++){
+        let n_y = a_n_y[n_x2];
+        if(n_y == 0){
+            continue;
+        }
+
+        let n_idx1 = f_n_idx_pixel_from_n_x_n_y(n_x2, n_y, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image, n_channels);
+    
+        let a_n_u8_imagedata_pixel = new Uint8ClampedArray(n_channels);
+        a_n_u8_imagedata_pixel[0] = a_n_u8_imagedata_original[n_idx1]; // R
+        a_n_u8_imagedata_pixel[1] = a_n_u8_imagedata_original[n_idx1+1]; // G
+        a_n_u8_imagedata_pixel[2] = a_n_u8_imagedata_original[n_idx1+2]; // B            
+        a_n_u8_imagedata_pixel[3] = a_n_u8_imagedata_original[n_idx1+3]; // A
+
+        for(let n_y2= n_y; n_y2 < o_state.n_scl_y_px_image; n_y2++){
+            // console.log('n_x2', n_x2, 'n_y2', n_y2)
+            let n_idx_pixel = f_n_idx_pixel_from_n_x_n_y(
+                n_x2, n_y2, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image, n_channels);
+            a_n_u8_imagedata[n_idx_pixel] = a_n_u8_imagedata_pixel[0]; // R
+            a_n_u8_imagedata[n_idx_pixel+1] = a_n_u8_imagedata_pixel[1]; // G
+            a_n_u8_imagedata[n_idx_pixel+2] = a_n_u8_imagedata_pixel[2]; // B
+            a_n_u8_imagedata[n_idx_pixel+3] = a_n_u8_imagedata_pixel[3]; // A
+        }
+    }
+
+    //draw a_n_u8_imagedata to canvas 
+    let o_canvas = document.querySelector('canvas');
+    let o_ctx = o_canvas.getContext('2d');
+    let o_image_data = new ImageData(
+        a_n_u8_imagedata, 
+        o_state.n_scl_x_px_image, 
+        o_state.n_scl_y_px_image
+    );
+    o_ctx.putImageData(o_image_data, 0, 0);
+    // f_o_toast('drawn pixel from image', 'info', 5000);
+    // relative translation to the canvas element
+}
+
+let o = await f_o_html_from_o_js(
+    {
+        class: "test",
+        style: "display: flex;flex-direction: row;",
+        f_a_o: ()=>{
+            return [
+                {
+                    s_tag: "canvas",
+                    onmousedown: function(o_event){
+                        if(o_event.button == 0){o_state.b_mouse_down_left = true;} 
+                        if(o_event.button == 1){o_state.b_mouse_down_middle = true;} 
+                        if(o_event.button == 2){o_state.b_mouse_down_right = true;} 
+                        let o_el = o_event.target;
+                        let o_rect = o_el.getBoundingClientRect();
+                        let o_trn_rel_to_el =
+                        {
+                            n_x: parseInt(o_event.clientX - o_rect.left),
+                            n_y: parseInt(o_event.clientY - o_rect.top)
+                        };
+                        // get the pixel of the mouse click
+                        console.log(o_trn_rel_to_el)
+
+                        a_n_y[o_trn_rel_to_el.n_x] = o_trn_rel_to_el.n_y;
+                        f_update_canvas();
+                        
+                    }, 
+                    onmousemove: function(o_event){
+                        if(o_state.b_mouse_down_left){
+                            let o_el = o_event.target;
+                            let o_rect = o_el.getBoundingClientRect();
+                            let o_trn_rel_to_el =
+                            {
+                                n_x: parseInt(o_event.clientX - o_rect.left),
+                                n_y: parseInt(o_event.clientY - o_rect.top)
+                            };
+                            console.log(o_trn_rel_to_el)
+
+
+                            a_n_y[o_trn_rel_to_el.n_x] = o_trn_rel_to_el.n_y;
+
+                            f_update_canvas();
+                        }
+                    },
+                    
+                },
+                {
+                    s_tag: "input",
+                    type: 'file',
+                    accept: 'image/*',
+                    onchange: async function(o_event){
+                        let o_file = o_event.target.files[0];
+                        if(o_file){
+                            let o_reader = new FileReader();
+                            o_reader.onload = function(e) {
+
+                                let s_dataurl_image = e.target.result;
+                                o_state.s_src_img = s_dataurl_image;
+                                
+                                let o_img = new Image();
+                                o_img.onload = function() {
+                                    o_state.n_scl_x_px_image = o_img.width;
+                                    o_state.n_scl_y_px_image = o_img.height;
+                                    o_state.b_loading_image = false;
+                                    // draw image to canvas 
+                                    let o_canvas = document.querySelector('canvas');
+                                    o_canvas.width = o_img.width;
+                                    o_canvas.height = o_img.height;
+                                    let o_ctx = o_canvas.getContext('2d');
+                                    o_ctx.clearRect(0, 0, o_canvas.width, o_canvas.height);
+                                    o_ctx.drawImage(o_img, 0, 0, o_img.width, o_img.height);
+
+                                    //downscale the image to max 1000px width 
+                                    if(o_img.width > 1000){
+                                        let n_scl_factor = 1000 / o_img.width;
+                                        o_state.n_scl_x_px_image = 1000;
+                                        o_state.n_scl_y_px_image = o_img.height * n_scl_factor;
+                                        o_canvas.width = o_state.n_scl_x_px_image;
+                                        o_canvas.height = o_state.n_scl_y_px_image;
+                                        o_ctx.drawImage(o_img, 0, 0, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image);
+                                    }
+                                    a_n_u8_imagedata_original = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+                                    a_n_u8_imagedata = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+                                    a_n_y = new Array(o_canvas.width).fill(0);
+                                };
+                                o_img.src = s_dataurl_image;
+                                // o_state.b_loading_image = true
+                            };
+                            o_reader.readAsDataURL(o_file);
+                        }
+                    }
+                }
+            ]
+        }
+    }, 
+    o_state
+)
+
+window.onmouseup = function(o_event){
+    if(o_event.button == 0){o_state.b_mouse_down_left = false;} 
+    if(o_event.button == 1){o_state.b_mouse_down_middle = false;} 
+    if(o_event.button == 2){o_state.b_mouse_down_right = false;} 
+}
+document.body.appendChild(o);
