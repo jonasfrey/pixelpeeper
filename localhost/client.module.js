@@ -53,6 +53,8 @@ f_add_css(
         )
     }
     .inputs{
+        position:fixed;
+        z-index: 100;
         flex: 1 1 auto;
         top: 0;
         right: 0;
@@ -198,8 +200,9 @@ let a_o_aspect_ratio =[
 let o_bcr_bgimg = {width:0};
 
 let a_n_u8_imagedata_overlay = new Uint8ClampedArray(0); // we dont need a proxy of this large array
-let a_n_u8_imagedata_original = new Uint8ClampedArray(0); // we dont need a proxy of this large array
 let a_n_u8_imagedata = new Uint8ClampedArray(0); // we dont need a proxy of this large array
+let a_n_u8_imagedata_original = null;
+let o_imagedata_original = null;
 
 let a_n_y_to_take_from = new Uint8ClampedArray(0); // we dont need a proxy of this large array
 let a_n_y_to_start_coloring = new Uint8ClampedArray(0); // we dont need a proxy of this large array
@@ -219,6 +222,7 @@ let o_state = f_o_proxified_and_add_listeners(
         b_mouse_down_left: false,
         b_mouse_down_middle: false,
         b_mouse_down_right: false,
+        n_scl_y: 0,
     },
     f_callback_beforevaluechange,
     f_callback_aftervaluechange, 
@@ -267,8 +271,36 @@ let f_update_canvas = function(){
         f_update_canvas_timeout();
     }, o_state.n_ms_timeout);
 }
+let f_resize_canvas = function(){
+    let o_canvas = document.querySelector('canvas#image');
+    let o_canvas2 = document.querySelector('canvas#overlay');
+    let o_ctx = o_canvas.getContext('2d');
+    o_state.n_scl_y_px_image = o_state.n_scl_y;
+    if(o_canvas && o_canvas2){
+        o_canvas.height = o_state.n_scl_y_px_image;
+        o_canvas2.height = o_state.n_scl_y_px_image;
+    }
+    o_ctx.putImageData(o_imagedata_original, 0, 0);
+}
 let f_update_canvas_timeout = function(
 ){
+    
+
+    let o_canvas = document.querySelector('canvas#image');
+    let o_ctx = o_canvas.getContext('2d');
+    let o_canvas2 = document.querySelector('canvas#overlay');
+    let o_ctx2 = o_canvas2.getContext('2d');
+
+    document.querySelector('.canvasses').style.width = `${o_canvas.width}px`;
+    document.querySelector('.canvasses').style.height = `${o_canvas.height}px`;
+
+    o_ctx.putImageData(o_imagedata_original, 0, 0);
+
+    a_n_u8_imagedata = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+    a_n_u8_imagedata_original = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+    a_n_u8_imagedata_overlay = new Uint8ClampedArray(a_n_u8_imagedata.length);
+
+
     console.log('f_update_canvas_timeout')
     let n_channels = 4; // RGBA
 
@@ -278,10 +310,18 @@ let f_update_canvas_timeout = function(
     // at HTMLCanvasElement.f_event_handler (module.js:2736:18)
     // fix the error by using the correct method to get the pixel data
 
+    let n_y_take_from_last = 0;
+    let n_y_to_start_coloring_last = 0;
     for(let n_x2 = 0; n_x2 < a_n_y_to_start_coloring.length; n_x2++){
         let n_y_take_from = a_n_y_to_take_from[n_x2];
+        if(n_y_take_from == -1){
+            n_y_take_from = n_y_take_from_last
+        }
+        n_y_take_from_last = n_y_take_from;
         let n_y_to_start_coloring = a_n_y_to_start_coloring[n_x2];
-
+        if(n_y_to_start_coloring == -1){
+            n_y_to_start_coloring = n_y_take_from
+        }
         let n_idx1 = f_n_idx_pixel_from_n_x_n_y(n_x2, n_y_take_from, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image, n_channels);
     
         let a_n_u8_imagedata_pixel = new Uint8ClampedArray(n_channels);
@@ -300,10 +340,10 @@ let f_update_canvas_timeout = function(
         }
 
         if(n_y_to_start_coloring != -1){
-            for(let n_y2= n_y_to_start_coloring; n_y2 < o_state.n_scl_y_px_image; n_y2++){
+            for(let n_y2= n_y_to_start_coloring; n_y2 < o_state.n_scl_y; n_y2++){
                 // console.log('n_x2', n_x2, 'n_y2', n_y2)
                 let n_idx_pixel = f_n_idx_pixel_from_n_x_n_y(
-                    n_x2, n_y2, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image, n_channels);
+                    n_x2, n_y2, o_state.n_scl_x_px_image, o_state.n_scl_y, n_channels);
                 a_n_u8_imagedata[n_idx_pixel] = a_n_u8_imagedata_pixel[0]; // R
                 a_n_u8_imagedata[n_idx_pixel+1] = a_n_u8_imagedata_pixel[1]; // G
                 a_n_u8_imagedata[n_idx_pixel+2] = a_n_u8_imagedata_pixel[2]; // B
@@ -321,8 +361,8 @@ let f_update_canvas_timeout = function(
     }
 
     //draw a_n_u8_imagedata to canvas 
-    let o_canvas = document.querySelector('canvas#image');
-    let o_ctx = o_canvas.getContext('2d');
+    o_ctx.clearRect(0, 0, o_canvas.width, o_canvas.height);
+
     let o_image_data = new ImageData(
         a_n_u8_imagedata, 
         o_state.n_scl_x_px_image, 
@@ -330,8 +370,8 @@ let f_update_canvas_timeout = function(
     );
     o_ctx.putImageData(o_image_data, 0, 0);
 
-    let o_canvas2 = document.querySelector('canvas#overlay');
-    let o_ctx2 = o_canvas2.getContext('2d');
+    // clear the canvas
+    o_ctx2.clearRect(0, 0, o_canvas2.width, o_canvas2.height);
     let o_image_data_overlay = new ImageData(
         a_n_u8_imagedata_overlay, 
         o_state.n_scl_x_px_image, 
@@ -390,116 +430,147 @@ let o = await f_o_html_from_o_js(
                     }
                 },
                 {
-                    s_tag: "button", 
-                    a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
-                    f_s_innerText: ()=>{
-                        return o_state.b_lock_take_from_and_start_coloring ? 'synced' : 'not synced';
-                    },
-                    onclick: ()=>{
-                        o_state.b_lock_take_from_and_start_coloring = !o_state.b_lock_take_from_and_start_coloring;
-                        if(o_state.b_lock_take_from_and_start_coloring){
-                            o_state.b_start_coloring = true;
-                            o_state.b_take_from = true;
-                        }else{
-                            o_state.b_start_coloring = false;
-                            o_state.b_take_from = false;
-                        }
-                    }
-                },
-                {
-                    s_tag: "button", 
-                    a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
-                    f_s_innerText: ()=>{
-                        return `${(o_state.b_start_coloring) ? '[x]' : '[ ]'} start coloring`;
-                    },
-                    onclick: ()=>{
-                        if(o_state.b_lock_take_from_and_start_coloring){
-                            o_state.b_start_coloring = true;
-                            o_state.b_take_from = true;
-                        }
-                        else{
-                            o_state.b_start_coloring = true;
-                            o_state.b_take_from = false;
-                        }
-                    }
-                },
-                {
-                    s_tag: "button", 
-                    a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
-                    f_s_innerText: ()=>{
-                        return `${(o_state.b_take_from) ? '[x]' : '[ ]'} take from`;
-                    },
-                    onclick: ()=>{
-                        if(o_state.b_lock_take_from_and_start_coloring){
-                            o_state.b_start_coloring = true;
-                            o_state.b_take_from = true;
-                        }
-                        else{
-                            o_state.b_start_coloring = false;
-                            o_state.b_take_from = true;
-                        }
-                    }
-                },
-                {
-                    s_tag: "input",
-                    type: 'file',
-                    accept: 'image/*',
-                    onchange: async function(o_event){
-                        let o_file = o_event.target.files[0];
-                        if(o_file){
-                            let o_reader = new FileReader();
-                            o_reader.onload = function(e) {
-
-                                let s_dataurl_image = e.target.result;
-                                o_state.s_src_img = s_dataurl_image;
-                                
-                                let o_img = new Image();
-                                o_img.onload = function() {
-                                    o_state.n_scl_x_px_image = o_img.width;
-                                    o_state.n_scl_y_px_image = o_img.height;
-                                    o_state.b_loading_image = false;
-                                    // draw image to canvas 
-                                    let o_canvas = document.querySelector('canvas#image');
-                                    o_canvas.width = o_img.width;
-                                    o_canvas.height = o_img.height;
-                                    let o_canvas_overlay = document.querySelector('canvas#overlay');
-                                    o_canvas_overlay.width = o_img.width;
-                                    o_canvas_overlay.height = o_img.height;
-
-                                    let o_ctx = o_canvas.getContext('2d');
-                                    o_ctx.clearRect(0, 0, o_canvas.width, o_canvas.height);
-                                    o_ctx.drawImage(o_img, 0, 0, o_img.width, o_img.height);
-
-                                    //downscale the image to max 1000px width 
-                                    if(o_img.width > 1000){
-                                        let n_scl_factor = 1000 / o_img.width;
-                                        o_state.n_scl_x_px_image = 1000;
-                                        o_state.n_scl_y_px_image = o_img.height * n_scl_factor;
-                                        o_canvas.width = o_state.n_scl_x_px_image;
-                                        o_canvas.height = o_state.n_scl_y_px_image;
-                                        o_canvas_overlay.width = o_state.n_scl_x_px_image;
-                                        o_canvas_overlay.height = o_state.n_scl_y_px_image;
-                                        
-
-                                        o_ctx.drawImage(o_img, 0, 0, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image);
+                    class: "inputs", 
+                    f_a_o: ()=>{
+                        return [
+                            {
+                                s_tag: "button", 
+                                a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
+                                f_s_innerText: ()=>{
+                                    return o_state.b_lock_take_from_and_start_coloring ? 'synced' : 'not synced';
+                                },
+                                onclick: ()=>{
+                                    o_state.b_lock_take_from_and_start_coloring = !o_state.b_lock_take_from_and_start_coloring;
+                                    if(o_state.b_lock_take_from_and_start_coloring){
+                                        o_state.b_start_coloring = true;
+                                        o_state.b_take_from = true;
+                                    }else{
+                                        o_state.b_start_coloring = false;
+                                        o_state.b_take_from = false;
                                     }
-                                    a_n_u8_imagedata_original = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
-                                    a_n_u8_imagedata = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
-                                    a_n_u8_imagedata_overlay = new Uint8ClampedArray(a_n_u8_imagedata_original.length);
-                                    a_n_y_to_take_from = new Array(o_canvas.width).fill(-1);
-                                    a_n_y_to_start_coloring = new Array(o_canvas.width).fill(-1);
-                                    document.querySelector('.canvasses').style.width = `${o_canvas.width}px`;
-                                    document.querySelector('.canvasses').style.height = `${o_canvas.height}px`;
-                                    globalThis.a_n_y_to_take_from = a_n_y_to_take_from
-                                    globalThis.a_n_y_to_start_coloring = a_n_y_to_start_coloring
-                                };
-                                o_img.src = s_dataurl_image;
-                                // o_state.b_loading_image = true
-                            };
-                            o_reader.readAsDataURL(o_file);
-                        }
+                                }
+                            },
+                            {
+                                s_tag: "button", 
+                                a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
+                                f_s_innerText: ()=>{
+                                    return `${(o_state.b_start_coloring) ? '[x]' : '[ ]'} start coloring`;
+                                },
+                                onclick: ()=>{
+                                    if(o_state.b_lock_take_from_and_start_coloring){
+                                        o_state.b_start_coloring = true;
+                                        o_state.b_take_from = true;
+                                    }
+                                    else{
+                                        o_state.b_start_coloring = true;
+                                        o_state.b_take_from = false;
+                                    }
+                                }
+                            },
+                            {
+                                s_tag: "button", 
+                                a_s_prop_sync: ['b_take_from','b_start_coloring', 'b_lock_take_from_and_start_coloring'],
+                                f_s_innerText: ()=>{
+                                    return `${(o_state.b_take_from) ? '[x]' : '[ ]'} take from`;
+                                },
+                                onclick: ()=>{
+                                    if(o_state.b_lock_take_from_and_start_coloring){
+                                        o_state.b_start_coloring = true;
+                                        o_state.b_take_from = true;
+                                    }
+                                    else{
+                                        o_state.b_start_coloring = false;
+                                        o_state.b_take_from = true;
+                                    }
+                                }
+                            },
+                            {
+                                s_tag: "input",
+                                type: 'file',
+                                accept: 'image/*',
+                                onchange: async function(o_event){
+                                    let o_file = o_event.target.files[0];
+                                    if(o_file){
+                                        let o_reader = new FileReader();
+                                        o_reader.onload = function(e) {
+            
+                                            let s_dataurl_image = e.target.result;
+                                            o_state.s_src_img = s_dataurl_image;
+                                            
+                                            let o_img = new Image();
+                                            o_img.onload = function() {
+                                                o_state.n_scl_x_px_image = o_img.width;
+                                                o_state.n_scl_y_px_image = o_img.height;
+                                                o_state.b_loading_image = false;
+                                                // draw image to canvas 
+                                                let o_canvas = document.querySelector('canvas#image');
+                                                o_canvas.width = o_img.width;
+                                                o_canvas.height = o_img.height;
+                                                let o_canvas_overlay = document.querySelector('canvas#overlay');
+                                                o_canvas_overlay.width = o_img.width;
+                                                o_canvas_overlay.height = o_img.height;
+            
+                                                let o_ctx = o_canvas.getContext('2d');
+                                                o_ctx.clearRect(0, 0, o_canvas.width, o_canvas.height);
+                                                o_ctx.drawImage(o_img, 0, 0, o_img.width, o_img.height);
+                                                //downscale the image to max 1000px width 
+                                                if(o_img.width > 1000){
+                                                    let n_scl_factor = 1000 / o_img.width;
+                                                    o_state.n_scl_x_px_image = 1000;
+                                                    o_state.n_scl_y_px_image = o_img.height * n_scl_factor;
+                                                    o_canvas.width = o_state.n_scl_x_px_image;
+                                                    o_canvas.height = o_state.n_scl_y_px_image;
+                                                    o_canvas_overlay.width = o_state.n_scl_x_px_image;
+                                                    o_canvas_overlay.height = o_state.n_scl_y_px_image;
+                                                    
+            
+                                                    o_ctx.drawImage(o_img, 0, 0, o_state.n_scl_x_px_image, o_state.n_scl_y_px_image);
+                                                }
+                                                o_state.n_scl_y = o_canvas.height;
+
+                                                o_imagedata_original = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height);
+                                                a_n_u8_imagedata = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+                                                a_n_u8_imagedata_original = o_ctx.getImageData(0, 0, o_canvas.width, o_canvas.height).data;
+                                                a_n_u8_imagedata_overlay = new Uint8ClampedArray(a_n_u8_imagedata_original.length);
+                                                a_n_y_to_take_from = new Array(o_canvas.width).fill(-1);
+                                                a_n_y_to_start_coloring = new Array(o_canvas.width).fill(-1);
+            
+                                                globalThis.a_n_y_to_take_from = a_n_y_to_take_from
+                                                globalThis.a_n_y_to_start_coloring = a_n_y_to_start_coloring
+                                            };
+                                            o_img.src = s_dataurl_image;
+                                            // o_state.b_loading_image = true
+                                        };
+                                        o_reader.readAsDataURL(o_file);
+                                    }
+                                }
+                            }, 
+                            {
+                                s_tag: "button", 
+                                f_s_innerText: ()=>{
+                                    return `download image`;
+                                },
+                                onclick: ()=>{
+                                    //download image from o_ctx 1
+                                    let o_canvas = document.querySelector('canvas#image');
+                                    let o_link = document.createElement('a');
+                                    o_link.href = o_canvas.toDataURL('image/png');
+                                    o_link.download = 'image.png';
+                                    o_link.click(); 
+                                }
+                            },
+                            {
+                                s_tag: "input", 
+                                a_s_prop_sync: ['n_scl_y'],
+                                onchange: ()=>{
+                                    //download image from o_ctx 1
+                                    let o_canvas = document.querySelector('canvas#image');
+                                    f_resize_canvas();
+                                }
+                            },
+                        ]
                     }
-                }
+                },
             ]
         }
     }, 
